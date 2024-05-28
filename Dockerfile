@@ -1,4 +1,6 @@
-# Build jellyfin-web
+######################
+# Build jellyfin-web #
+######################
 FROM node:20 as jellyfin-web
 
 ARG JELLYFIN_BRANCH
@@ -7,10 +9,12 @@ RUN git clone -b ${JELLYFIN_BRANCH} https://github.com/jellyfin/jellyfin-web.git
 
 WORKDIR /home/jellyfin/jellyfin-web
 
-RUN SKIP_PREPARE=1 npm ci --no-audit
-RUN USE_SYSTEM_FONTS=1 npm run build:production
+RUN SKIP_PREPARE=1 npm ci --no-audit \
+    && USE_SYSTEM_FONTS=1 npm run build:production
 
-# Build jellyfin-tizen
+########################
+# Build jellyfin-tizen #
+########################
 FROM node:18 as jellyfin-tizen
 
 RUN useradd -m jellyfin -s /bin/bash
@@ -26,22 +30,31 @@ ENV JELLYFIN_WEB_DIR=./dist
 
 RUN npm ci --no-audit
 
-# Tizen stage
+###############
+# Tizen stage #
+###############
 FROM ubuntu:22.04 as build
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Poland
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y tzdata && apt-get install -y wget git expect 
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+    wget=1.21.2-2ubuntu1 \
+    git=1:2.34.1-1ubuntu1.11 \
+    expect=5.45.4-2build1 \
+    ca-certificates=20211016 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create user 
+# Create user
 RUN useradd -m jellyfin -s /bin/bash
 USER jellyfin
 
 # Install tizen-studio
-RUN wget https://download.tizen.org/sdk/Installer/tizen-studio_5.5/web-cli_Tizen_Studio_5.5_ubuntu-64.bin -P /home/jellyfin
-RUN chmod a+x /home/jellyfin/web-cli_Tizen_Studio_5.5_ubuntu-64.bin
-RUN ./home/jellyfin/web-cli_Tizen_Studio_5.5_ubuntu-64.bin --accept-license /home/jellyfin/tizen-studio
+RUN wget --progress=dot:giga https://download.tizen.org/sdk/Installer/tizen-studio_5.5/web-cli_Tizen_Studio_5.5_ubuntu-64.bin -P /home/jellyfin \
+    && chmod a+x /home/jellyfin/web-cli_Tizen_Studio_5.5_ubuntu-64.bin \
+    && ./home/jellyfin/web-cli_Tizen_Studio_5.5_ubuntu-64.bin --accept-license /home/jellyfin/tizen-studio
 ENV PATH=${PATH}:/home/jellyfin/tizen-studio/tools/ide/bin:/home/jellyfin/tizen-studio/tools
 
 # Copy built app
@@ -52,6 +65,11 @@ COPY --from=jellyfin-tizen --chown=jellyfin /home/jellyfin/jellyfin-tizen/index.
 COPY --from=jellyfin-tizen --chown=jellyfin /home/jellyfin/jellyfin-tizen/tizen.js ./tizen.js
 COPY --from=jellyfin-tizen --chown=jellyfin /home/jellyfin/jellyfin-tizen/www/ ./www/
 
+# Copy scripts
+COPY --chown=jellyfin --chmod=744 ./scripts/package-app.sh ./package-app.sh
+COPY --chown=jellyfin --chmod=744 ./scripts/install-app.sh ./install-app.sh
+
+
 ARG CERT_PASSWORD
 ARG CERT_FILENAME
 ARG CERT_NAME
@@ -60,18 +78,12 @@ ARG CERT_NAME
 COPY cert/${CERT_FILENAME}.p12 /home/jellyfin/tizen-studio-data/keystore/author/Jellyfin.p12
 
 # Load profile
-RUN tizen security-profiles add -n ${CERT_NAME} -a /home/jellyfin/tizen-studio-data/keystore/author/Jellyfin.p12 -p ${CERT_PASSWORD}
-
-# Switch passwords
-RUN sed -i 's/\/home\/jellyfin\/tizen-studio-data\/keystore\/author\/Jellyfin.pwd//' /home/jellyfin/tizen-studio-data/profile/profiles.xml
-RUN sed -i 's/\/home\/jellyfin\/tizen-studio-data\/tools\/certificate-generator\/certificates\/distributor\/tizen-distributor-signer.pwd/tizenpkcs12passfordsigner/' /home/jellyfin/tizen-studio-data/profile/profiles.xml
-
-# Build Tizen App
-RUN tizen build-web
-
-COPY --chown=jellyfin --chmod=744 ./scripts/package-app.sh ./package-app.sh
-COPY --chown=jellyfin --chmod=744 ./scripts/install-app.sh ./install-app.sh
-
-RUN ./package-app.sh
+RUN tizen security-profiles add -n ${CERT_NAME} -a /home/jellyfin/tizen-studio-data/keystore/author/Jellyfin.p12 -p ${CERT_PASSWORD} \
+    # Switch passwords
+    && sed -i 's/\/home\/jellyfin\/tizen-studio-data\/keystore\/author\/Jellyfin.pwd//' /home/jellyfin/tizen-studio-data/profile/profiles.xml \
+    && sed -i 's/\/home\/jellyfin\/tizen-studio-data\/tools\/certificate-generator\/certificates\/distributor\/tizen-distributor-signer.pwd/tizenpkcs12passfordsigner/' /home/jellyfin/tizen-studio-data/profile/profiles.xml \
+    # Build Tizen App
+    && tizen build-web \
+    && ./package-app.sh
 
 ENTRYPOINT [ "./install-app.sh" ]

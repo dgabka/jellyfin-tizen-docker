@@ -1,6 +1,3 @@
-# Maintainers
-Looking for maintainers to take over!! 
-
 # Jellyfin installer for Tizen OS through Docker
 Made this single container to build and deploy jellyfin to Samsung TVs.
 
@@ -11,7 +8,6 @@ Credits go to the following:
 
 ## Prequisites
 - Docker
-- Internet connection for the Docker images
 
 ## How to use
 
@@ -60,7 +56,7 @@ TV_IP=192.168.0.10 ./install-jellyfin.sh
   - OR run the container overwriting the entrypoint for more control over the installation
     ```
     docker run -it --rm --entrypoint "/bin/bash" jellyfin-tizen-installer
-    ``` 
+    ```
 
 ### Certificate
 
@@ -72,4 +68,3 @@ You may generate your own by running:
 ```
 
 *Note:* you may overwrite default certificate data by amending values in `.env.default`.
-
