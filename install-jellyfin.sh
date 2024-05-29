@@ -12,7 +12,7 @@ source .env.default
 if [ ! -f "cert/${CERT_FILENAME}.p12" ]; then
     echo "Creating new Tizen certificate"
     ./scripts/extract-cert.sh
-else 
+else
     echo "Using cert/${CERT_FILENAME}.p12 as Tizen certificate"
 fi
 
@@ -26,4 +26,3 @@ docker build \
 
 echo "Installing Jellyfin"
 docker run --rm --env TV_IP="$TV_IP" jellyfin-tizen-installer
-

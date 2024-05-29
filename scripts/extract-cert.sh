@@ -5,13 +5,17 @@ set -e
 source .env.default
 
 if [ -f "cert/${CERT_FILENAME}.p12" ]; then
-    read -rp "Certificate file will be overwritten. Do you want to proceed? (y/n) " yn  
-    case $yn in 
-	y ) echo Continuing...;;
-	n ) echo Exiting...;
-		exit;;
-	* ) echo Invalid choice;
-		exit 1;;
+    read -rp "Certificate file will be overwritten. Do you want to proceed? (y/n) " yn
+    case $yn in
+        y) echo Continuing... ;;
+        n)
+            echo Exiting...
+            exit
+            ;;
+        *)
+            echo Invalid choice
+            exit 1
+            ;;
     esac
 fi
 
